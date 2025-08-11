@@ -1,9 +1,9 @@
 name: Upstream Sync
 
-# 修复后的权限配置
+# 修复权限配置 - 添加workflows权限
 permissions:
   contents: write
-  actions: write  # 正确的权限名称应该是 'actions'
+  workflows: write
 
 on:
   schedule:
@@ -12,30 +12,33 @@ on:
 
 jobs:
   sync_latest_from_upstream:
-    name: Sync latest commits from upstream repo
+    name: Sync upstream commits
     runs-on: ubuntu-latest
     if: ${{ github.event.repository.fork }}
-
+    
     steps:
       - name: Checkout target repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 确保获取完整历史记录
+          fetch-depth: 0
 
+      # 简化同步参数，移除可选配置
       - name: Sync upstream changes
-        id: sync
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
         with:
           upstream_sync_repo: LibreSpark/LibreTV
           upstream_sync_branch: main
           target_sync_branch: main
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          # 禁用日志格式参数减少出错可能
+          git_log_format_args: null
 
+      # 优化错误提示信息
       - name: Sync check
         if: failure()
         run: |
-          echo "::error::[同步失败] 请手动执行同步:"
-          echo "1. 前往你的仓库: https://github.com/${{ github.repository }}"
-          echo "2. 点击 'Sync fork' 按钮"
-          echo "3. 选择 'Update branch'"
+          echo "::error::[同步失败] 可能需要手动同步："
+          echo "1. 访问仓库 https://github.com/${{ github.repository }}/settings"
+          echo "2. 在左侧菜单点击【Sync fork】"
+          echo "3. 点击【Update branch】按钮"
           exit 1
