@@ -1,7 +1,9 @@
 name: Upstream Sync
 
+# 关键修复：增加workflows写入权限
 permissions:
   contents: write
+  workflows: write  # 新增此行解决工作流文件更新权限问题
 
 on:
   schedule:
@@ -15,11 +17,11 @@ jobs:
     if: ${{ github.event.repository.fork }}
 
     steps:
-      # Step 1: run a standard checkout action
       - name: Checkout target repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 添加深度克隆确保完整历史记录
 
-      # Step 2: run the sync action
       - name: Sync upstream changes
         id: sync
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
@@ -28,9 +30,17 @@ jobs:
           upstream_sync_branch: main
           target_sync_branch: main
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          # 添加强制覆盖选项解决文件冲突
+          git_push_force: false
+          git_reset_hard: true
 
+      # 更新错误信息使其更准确
       - name: Sync check
         if: failure()
         run: |
-          echo "[Error] Due to a change in the workflow file of the upstream repository, GitHub has automatically suspended the scheduled automatic update. You need to manually sync your fork."
+          echo "::error::[同步失败] 可能原因："
+          echo "1. 工作流文件权限不足（已修复本次配置）"
+          echo "2. 上游仓库分支保护规则变更"
+          echo "3. 同步出现文件冲突"
+          echo "请手动检查：https://github.com/LibreSpark/LibreTV/compare/main...$(git rev-parse --abbrev-ref HEAD)"
           exit 1
